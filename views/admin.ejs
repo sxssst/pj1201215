@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Panel | CommonGround</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="/">CommonGround</a>
+    <nav class="top-actions" aria-label="Admin navigation"><a href="/">Feed</a><span class="user-label"><%= currentUser.username %></span><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Log out</button></form></nav>
+  </header>
+  <main class="page-shell">
+    <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Admin Panel</h1></div><span class="role-label admin">ADMIN</span></div>
+    <section class="admin-section">
+      <div class="section-heading"><h2>Users</h2><span class="count"><%= users.length %> total</span></div>
+      <div class="table-wrap"><table><thead><tr><th>Username</th><th>Display name</th><th>Role</th><th>Bio</th><th>Action</th></tr></thead><tbody>
+        <% users.forEach(user => { %><tr><td><%= user.username %></td><td><%= user.display_name %></td><td><span class="role-label <%= user.role %>"><%= user.role %></span></td><td><%= user.bio %></td><td><form method="post" action="/admin/users/<%= user.id %>/delete" onsubmit="return confirm('Delete this user and all of their posts?')"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button danger-link" type="submit">Delete user</button></form></td></tr><% }); %>
+      </tbody></table></div>
+    </section>
+    <section class="admin-section">
+      <div class="section-heading"><h2>All posts</h2><span class="count"><%= posts.length %> total</span></div>
+      <% if (posts.length === 0) { %><p class="muted">ยังไม่มีโพสต์ในขณะนี้</p><% } else { %>
+        <div class="feedback-list">
+          <% posts.forEach(post => { %><article class="feedback-entry"><div class="feedback-meta"><strong><%= post.title %> · <%= post.username %></strong><time><%= post.created_at %></time></div><p class="note-content"><%= post.content %></p><% if (post.image_url) { %><img class="admin-post-image" src="<%= post.image_url %>" alt="ภาพประกอบโพสต์" loading="lazy"><% } %><form method="post" action="/admin/posts/<%= post.id %>/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button danger-link" type="submit">Delete post</button></form></article><% }); %>
+        </div>
+      <% } %>
+    </section>
+  </main>
+</body>
+</html>

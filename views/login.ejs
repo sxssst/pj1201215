@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Login | CommonGround</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <a class="wordmark" href="/">CommonGround</a>
+    <section class="auth-panel">
+      <p class="eyebrow">A COMMUNITY SPACE</p>
+      <h1>Login</h1>
+      <p class="muted">กลับมาร่วมพูดคุยกันต่อ</p>
+      <% if (flash) { %><p class="notice <%= flash.type %>" role="status"><%= flash.message %></p><% } %>
+      <% if (error) { %><p class="notice error" role="alert"><%= error %></p><% } %>
+      <form method="post" action="/login" class="stack-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Username<input name="username" required minlength="3" maxlength="32" autocomplete="username" autofocus></label>
+        <label>Password<input type="password" name="password" required autocomplete="current-password"></label>
+        <button class="button primary" type="submit">Login <span aria-hidden="true">&#8594;</span></button>
+      </form>
+      <p class="form-foot">สมาชิกใหม่? <a href="/register">Register</a></p>
+    </section>
+    <p class="auth-aside">ทุกบทสนทนาดี ๆ เริ่มต้นได้ที่นี่</p>
+  </main>
+</body>
+</html>

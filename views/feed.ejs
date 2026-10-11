@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Feed | CommonGround</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="/">CommonGround</a>
+    <nav class="top-actions" aria-label="Main navigation">
+      <a class="nav-active" href="/">Feed</a>
+      <% if (currentUser) { %>
+        <a href="/profile">Profile</a>
+        <% if (currentUser.role === 'admin') { %><a href="/admin">Admin Panel</a><% } %>
+        <span class="user-label"><%= currentUser.username %></span>
+        <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Log out</button></form>
+      <% } else { %>
+        <a href="/login">Login</a>
+        <a class="nav-join" href="/register">Register</a>
+      <% } %>
+    </nav>
+  </header>
+  <main class="forum-shell feed-page">
+    <% if (flash) { %><p class="notice <%= flash.type %>" role="status"><%= flash.message %></p><% } %>
+    <div class="feed-heading">
+      <div><p class="eyebrow">IDEAS, IMAGES &amp; EVERYDAY LIFE</p><h1>Feed</h1></div>
+      <p class="feed-intro">พื้นที่เล็ก ๆ สำหรับแบ่งปันเรื่องราวและไอเดียของทุกคน</p>
+    </div>
+    <div class="forum-grid">
+      <section class="feed-column" aria-label="Community posts">
+        <% if (currentUser) { %>
+          <section class="composer">
+            <div class="section-kicker"><span class="compose-icon" aria-hidden="true">+</span><div><p class="eyebrow">YOUR NEXT IDEA</p><h2>Create Post</h2></div></div>
+            <form method="post" action="/posts" enctype="multipart/form-data" class="stack-form">
+              <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+              <label>Title<input name="title" required maxlength="160" placeholder="ตั้งชื่อโพสต์ของคุณ"></label>
+              <label>Post content<textarea name="content" maxlength="10000" rows="4" placeholder="แชร์ไอเดียหรือเรื่องราวของคุณ..."></textarea></label>
+              <div class="composer-actions"><label class="file-picker">Add image<input type="file" name="image" accept="image/jpeg,image/png,image/gif,image/webp"></label><span class="form-hint">One image, up to 5 MB</span><button class="button primary" type="submit">Submit</button></div>
+            </form>
+          </section>
+        <% } else { %>
+          <section class="join-strip"><p>มีเรื่องราวอยากแบ่งปันไหม?</p><a class="button primary" href="/login">Join the conversation</a></section>
+        <% } %>
+        <div class="stream-heading"><h2>Recent posts</h2><span class="count"><%= posts.length %> posts</span></div>
+        <% if (posts.length === 0) { %>
+          <div class="empty-state"><span class="empty-mark" aria-hidden="true">*</span><h2>ยังไม่มีโพสต์ในขณะนี้</h2><p>มาแบ่งปันเรื่องราวแรกกับชุมชนของเรากันเถอะ</p></div>
+        <% } else { %>
+          <div class="post-list">
+            <% posts.forEach(post => { %>
+              <article class="post-card" id="post-<%= post.id %>">
+                <div class="post-meta"><span class="post-avatar"><% if (post.avatar_url) { %><img src="<%= post.avatar_url %>" alt="รูปโปรไฟล์" loading="lazy"><% } else { %><span aria-hidden="true"><%= (post.display_name || post.username).slice(0, 1).toUpperCase() %></span><% } %></span><div><span class="author-name"><%= post.display_name || post.username %></span><span class="author-handle">@<%= post.username %></span><time datetime="<%= post.created_at %>"><%= post.created_at %></time></div></div>
+                <h2 class="post-title"><%= post.title %></h2>
+                <% if (post.content) { %><p class="post-content"><%= post.content %></p><% } %>
+                <% if (post.image_url) { %><img class="post-image" src="<%= post.image_url %>" alt="ภาพประกอบโพสต์" loading="lazy"><% } %>
+                <% if (currentUser && (currentUser.id === post.user_id || currentUser.role === 'admin')) { %><div class="post-controls"><form method="post" action="/posts/<%= post.id %>/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button danger-link" type="submit">Delete post</button></form></div><% } %>
+                <% const postComments = commentsByPost[post.id] || []; %>
+                <section class="comments" id="comments-<%= post.id %>" aria-label="Comments">
+                  <div class="comments-heading"><h3>Comments</h3><span class="count"><%= postComments.length %></span></div>
+                  <% if (postComments.length) { %>
+                    <div class="comment-list">
+                      <% postComments.forEach(comment => { %>
+                        <article class="comment-row">
+                          <span class="comment-avatar"><% if (comment.avatar_url) { %><img src="<%= comment.avatar_url %>" alt="รูปโปรไฟล์" loading="lazy"><% } else { %><span aria-hidden="true"><%= (comment.display_name || comment.username).slice(0, 1).toUpperCase() %></span><% } %></span>
+                          <div class="comment-body"><div class="comment-meta"><span class="author-name"><%= comment.display_name || comment.username %></span><span class="author-handle">@<%= comment.username %></span><time><%= comment.created_at %></time></div><p><%= comment.content %></p></div>
+                        </article>
+                      <% }); %>
+                    </div>
+                  <% } %>
+                  <% if (currentUser) { %>
+                    <form class="comment-form" method="post" action="/posts/<%= post.id %>/comments">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <textarea name="content" required maxlength="2000" rows="2" placeholder="เขียนความคิดเห็นของคุณ..."></textarea>
+                      <button class="button secondary" type="submit">Reply</button>
+                    </form>
+                  <% } else { %>
+                    <a class="comment-login" href="/login">Login to comment</a>
+                  <% } %>
+                </section>
+              </article>
+            <% }); %>
+          </div>
+        <% } %>
+      </section>
+      <aside class="community-rail">
+        <section class="rail-section welcome-rail"><p class="eyebrow">WELCOME</p><h2>ยินดีต้อนรับ</h2><p>มาแบ่งปันเรื่องราว ทำความรู้จักกัน และเติมสีสันให้พื้นที่นี้</p></section>
+        <% if (currentUser) { %><section class="rail-section profile-rail"><p class="eyebrow">YOUR SPACE</p><a href="/profile" class="rail-link">Edit your profile <b aria-hidden="true">&#8594;</b></a></section><% } %>
+        <section class="rail-section"><p class="eyebrow">COMMUNITY GUIDELINES</p><ul class="community-rules"><li>Be kind</li><li>Share thoughtfully</li><li>Respect each other</li></ul></section>
+        <p class="rail-footer">CommonGround · 2026</p>
+      </aside>
+    </div>
+  </main>
+</body>
+</html>

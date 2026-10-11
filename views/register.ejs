@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Register | CommonGround</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="auth-page">
+  <main class="auth-shell">
+    <a class="wordmark" href="/">CommonGround</a>
+    <section class="auth-panel">
+      <p class="eyebrow">FIND YOUR PEOPLE</p>
+      <h1>Register</h1>
+      <p class="muted">สร้างบัญชีเพื่อเข้าร่วมบทสนทนากับชุมชน</p>
+      <% if (error) { %><p class="notice error" role="alert"><%= error %></p><% } %>
+      <form method="post" action="/register" class="stack-form">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label>Username<input name="username" required minlength="3" maxlength="32" pattern="[A-Za-z0-9_.-]+" autocomplete="username" autofocus></label>
+        <label>Password<input type="password" name="password" required minlength="10" maxlength="72" autocomplete="new-password"><small>รหัสผ่านต้องมีอย่างน้อย 10 ตัวอักษร</small></label>
+        <button class="button primary" type="submit">Register <span aria-hidden="true">&#8594;</span></button>
+      </form>
+      <p class="form-foot">มีบัญชีอยู่แล้ว? <a href="/login">Login</a></p>
+    </section>
+    <p class="auth-aside">เป็นตัวเองได้เต็มที่</p>
+  </main>
+</body>
+</html>
