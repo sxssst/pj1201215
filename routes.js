@@ -127,16 +127,29 @@ router.get(['/', '/feed'], (req, res) => {
   `).all();
   const comments = db.prepare(`
     SELECT comments.id, comments.post_id, comments.user_id, comments.content, comments.created_at,
-      users.username, users.display_name, users.avatar_url
+      comments.parent_comment_id, users.username, users.display_name,
+      COALESCE(NULLIF(users.avatar_url, ''), '/avatar-placeholder.svg') AS avatar_url
     FROM comments
     JOIN users ON users.id = comments.user_id
     ORDER BY comments.created_at, comments.id
   `).all();
   const commentsByPost = Object.create(null);
+  const commentsById = new Map();
+  const commentCounts = Object.create(null);
   for (const comment of comments) {
-    (commentsByPost[comment.post_id] ||= []).push(comment);
+    comment.replies = [];
+    commentsById.set(comment.id, comment);
+    commentCounts[comment.post_id] = (commentCounts[comment.post_id] || 0) + 1;
   }
-  res.render('feed', { posts, commentsByPost });
+  for (const comment of comments) {
+    const parent = commentsById.get(comment.parent_comment_id);
+    if (parent && parent.post_id === comment.post_id) {
+      parent.replies.push(comment);
+    } else {
+      (commentsByPost[comment.post_id] ||= []).push(comment);
+    }
+  }
+  res.render('feed', { posts, commentsByPost, commentCounts });
 });
 
 router.get('/register', (req, res) => {
@@ -251,17 +264,27 @@ router.post('/posts/:id/delete', requireAuth, (req, res) => {
 router.post('/posts/:id/comments', requireAuth, (req, res) => {
   const postId = Number(req.params.id);
   const content = String(req.body.content || '').trim();
+  const parentIdInput = String(req.body.parent_comment_id || '').trim();
+  const parentCommentId = parentIdInput ? Number(parentIdInput) : null;
   if (!Number.isSafeInteger(postId) || postId < 1) return res.status(404).send('ไม่พบโพสต์ที่ต้องการ');
   if (!db.prepare('SELECT id FROM posts WHERE id = ?').get(postId)) {
     return res.status(404).send('ไม่พบโพสต์ที่ต้องการ');
+  }
+  if (parentCommentId !== null) {
+    if (!Number.isSafeInteger(parentCommentId) || parentCommentId < 1) {
+      return res.status(400).send('ความคิดเห็นที่ต้องการตอบกลับไม่ถูกต้อง');
+    }
+    if (!db.prepare('SELECT id FROM comments WHERE id = ? AND post_id = ?').get(parentCommentId, postId)) {
+      return res.status(404).send('ไม่พบความคิดเห็นที่ต้องการตอบกลับ');
+    }
   }
   if (!content || content.length > 2000) {
     req.session.flash = { type: 'error', message: 'กรุณาเขียนความคิดเห็นไม่เกิน 2,000 ตัวอักษร' };
     return res.redirect(`/#comments-${postId}`);
   }
-  db.prepare('INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)')
-    .run(postId, req.session.user.id, content);
-  req.session.flash = { type: 'success', message: 'เพิ่มความคิดเห็นแล้ว' };
+  db.prepare('INSERT INTO comments (post_id, user_id, parent_comment_id, content) VALUES (?, ?, ?, ?)')
+    .run(postId, req.session.user.id, parentCommentId, content);
+  req.session.flash = { type: 'success', message: parentCommentId ? 'เพิ่มการตอบกลับแล้ว' : 'เพิ่มความคิดเห็นแล้ว' };
   res.redirect(`/#comments-${postId}`);
 });
 
@@ -276,12 +299,17 @@ router.get('/profile', requireAuth, (req, res) => {
 router.post('/profile', requireAuth, (req, res, next) => req.app.locals.profileImageUpload(req, res, next), requireCsrf, (req, res, next) => {
   const username = String(req.body.username || '').trim().toLowerCase();
   const displayName = String(req.body.display_name || '').trim();
+  const bio = String(req.body.bio || '').trim();
   if (!/^[a-z0-9_.-]{3,32}$/.test(username)) {
     req.session.flash = { type: 'error', message: 'ชื่อผู้ใช้ต้องมีความยาว 3–32 ตัวอักษร และใช้ได้เฉพาะ a-z ตัวเลข จุด ขีดล่าง หรือขีดกลาง' };
     return res.redirect('/profile');
   }
   if (!displayName || displayName.length > 50) {
     req.session.flash = { type: 'error', message: 'กรุณากรอกชื่อเล่นไม่เกิน 50 ตัวอักษร' };
+    return res.redirect('/profile');
+  }
+  if (bio.length > 500) {
+    req.session.flash = { type: 'error', message: 'ประวัติส่วนตัวต้องมีความยาวไม่เกิน 500 ตัวอักษร' };
     return res.redirect('/profile');
   }
   const duplicate = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?')
@@ -301,8 +329,8 @@ router.post('/profile', requireAuth, (req, res, next) => req.app.locals.profileI
   }
 
   try {
-    db.prepare('UPDATE users SET username = ?, display_name = ?, avatar_url = ? WHERE id = ?')
-      .run(username, displayName, avatarUrl, req.session.user.id);
+    db.prepare('UPDATE users SET username = ?, display_name = ?, bio = ?, avatar_url = ? WHERE id = ?')
+      .run(username, displayName, bio, avatarUrl, req.session.user.id);
   } catch (error) {
     if (req.file) removeUploadedImage(avatarUrl);
     return next(error);
@@ -310,6 +338,7 @@ router.post('/profile', requireAuth, (req, res, next) => req.app.locals.profileI
   if (req.file) removeUploadedImage(req.session.user.avatar_url);
   req.session.user.username = username;
   req.session.user.display_name = displayName;
+  req.session.user.bio = bio;
   req.session.user.avatar_url = avatarUrl;
   req.session.flash = { type: 'success', message: 'อัปเดตโปรไฟล์เรียบร้อยแล้ว' };
   res.redirect('/profile');

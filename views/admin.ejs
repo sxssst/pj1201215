@@ -3,13 +3,13 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Admin Panel | CommonGround</title>
+  <title>Admin Panel | Blackdit</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="wordmark" href="/">CommonGround</a>
-    <nav class="top-actions" aria-label="Admin navigation"><a href="/">Feed</a><span class="user-label"><%= currentUser.username %></span><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Log out</button></form></nav>
+    <a class="wordmark" href="/">Blackdit</a>
+    <nav class="top-actions" aria-label="Admin navigation"><a href="/">Feed</a><a href="/profile">Profile</a><a class="nav-user" href="/profile"><img src="<%= currentUser.avatar_url || '/avatar-placeholder.svg' %>" alt="" width="30" height="30"><span><%= currentUser.username %></span></a><form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Logout</button></form></nav>
   </header>
   <main class="page-shell">
     <div class="page-heading"><div><p class="eyebrow">ADMINISTRATION</p><h1>Admin Panel</h1></div><span class="role-label admin">ADMIN</span></div>

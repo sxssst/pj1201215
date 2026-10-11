@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Feed | CommonGround</title>
+  <title>Feed | Blackdit</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <header class="topbar">
-    <a class="wordmark" href="/">CommonGround</a>
+    <a class="wordmark" href="/">Blackdit</a>
     <nav class="top-actions" aria-label="Main navigation">
       <a class="nav-active" href="/">Feed</a>
       <% if (currentUser) { %>
         <a href="/profile">Profile</a>
         <% if (currentUser.role === 'admin') { %><a href="/admin">Admin Panel</a><% } %>
-        <span class="user-label"><%= currentUser.username %></span>
+        <a class="nav-user" href="/profile"><img src="<%= currentUser.avatar_url || '/avatar-placeholder.svg' %>" alt="" width="30" height="30"><span><%= currentUser.username %></span></a>
         <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button" type="submit">Log out</button></form>
       <% } else { %>
         <a href="/login">Login</a>
@@ -57,14 +57,11 @@
                 <% if (currentUser && (currentUser.id === post.user_id || currentUser.role === 'admin')) { %><div class="post-controls"><form method="post" action="/posts/<%= post.id %>/delete"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="text-button danger-link" type="submit">Delete post</button></form></div><% } %>
                 <% const postComments = commentsByPost[post.id] || []; %>
                 <section class="comments" id="comments-<%= post.id %>" aria-label="Comments">
-                  <div class="comments-heading"><h3>Comments</h3><span class="count"><%= postComments.length %></span></div>
+                  <div class="comments-heading"><h3>Comments</h3><span class="count"><%= commentCounts[post.id] || 0 %></span></div>
                   <% if (postComments.length) { %>
                     <div class="comment-list">
                       <% postComments.forEach(comment => { %>
-                        <article class="comment-row">
-                          <span class="comment-avatar"><% if (comment.avatar_url) { %><img src="<%= comment.avatar_url %>" alt="รูปโปรไฟล์" loading="lazy"><% } else { %><span aria-hidden="true"><%= (comment.display_name || comment.username).slice(0, 1).toUpperCase() %></span><% } %></span>
-                          <div class="comment-body"><div class="comment-meta"><span class="author-name"><%= comment.display_name || comment.username %></span><span class="author-handle">@<%= comment.username %></span><time><%= comment.created_at %></time></div><p><%= comment.content %></p></div>
-                        </article>
+                        <%- include('comment', { comment, postId: post.id, csrfToken, currentUser }) %>
                       <% }); %>
                     </div>
                   <% } %>
@@ -72,7 +69,7 @@
                     <form class="comment-form" method="post" action="/posts/<%= post.id %>/comments">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                       <textarea name="content" required maxlength="2000" rows="2" placeholder="เขียนความคิดเห็นของคุณ..."></textarea>
-                      <button class="button secondary" type="submit">Reply</button>
+                      <button class="button secondary" type="submit">Comment</button>
                     </form>
                   <% } else { %>
                     <a class="comment-login" href="/login">Login to comment</a>
@@ -87,7 +84,7 @@
         <section class="rail-section welcome-rail"><p class="eyebrow">WELCOME</p><h2>ยินดีต้อนรับ</h2><p>มาแบ่งปันเรื่องราว ทำความรู้จักกัน และเติมสีสันให้พื้นที่นี้</p></section>
         <% if (currentUser) { %><section class="rail-section profile-rail"><p class="eyebrow">YOUR SPACE</p><a href="/profile" class="rail-link">Edit your profile <b aria-hidden="true">&#8594;</b></a></section><% } %>
         <section class="rail-section"><p class="eyebrow">COMMUNITY GUIDELINES</p><ul class="community-rules"><li>Be kind</li><li>Share thoughtfully</li><li>Respect each other</li></ul></section>
-        <p class="rail-footer">CommonGround · 2026</p>
+        <p class="rail-footer">Blackdit · 2026</p>
       </aside>
     </div>
   </main>

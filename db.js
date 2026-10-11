@@ -17,7 +17,7 @@ db.exec(`
     password TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin')),
     bio TEXT NOT NULL DEFAULT '',
-    avatar_url TEXT,
+    avatar_url TEXT NOT NULL DEFAULT '/avatar-placeholder.svg',
     display_name TEXT NOT NULL DEFAULT ''
   );
 
@@ -44,17 +44,18 @@ db.exec(`
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
   );
 
-    CREATE TABLE IF NOT EXISTS comments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
-      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-      content TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-    );
+  CREATE TABLE IF NOT EXISTS comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    parent_comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  );
 
   CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at DESC, id DESC);
   CREATE INDEX IF NOT EXISTS idx_posts_user_id ON posts(user_id);
-    CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id, created_at, id);
+  CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id, created_at, id);
 `);
 
 const userColumns = db.pragma('table_info(users)');
@@ -62,10 +63,17 @@ if (!userColumns.some(column => column.name === 'bio')) {
   db.exec("ALTER TABLE users ADD COLUMN bio TEXT NOT NULL DEFAULT ''");
 }
 if (!userColumns.some(column => column.name === 'avatar_url')) {
-  db.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+  db.exec("ALTER TABLE users ADD COLUMN avatar_url TEXT NOT NULL DEFAULT '/avatar-placeholder.svg'");
 }
 if (!userColumns.some(column => column.name === 'display_name')) {
   db.exec("ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT ''");
 }
+
+const commentColumns = db.pragma('table_info(comments)');
+if (!commentColumns.some(column => column.name === 'parent_comment_id')) {
+  db.exec('ALTER TABLE comments ADD COLUMN parent_comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE');
+}
+db.exec("UPDATE users SET avatar_url = '/avatar-placeholder.svg' WHERE avatar_url IS NULL OR avatar_url = ''");
+db.exec('CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_comment_id, created_at, id)');
 
 module.exports = db;

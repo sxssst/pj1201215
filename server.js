@@ -96,7 +96,7 @@ app.use((error, req, res, next) => {
 const port = Number(process.env.PORT) || 3000;
 if (require.main === module) {
   app.listen(port, () => {
-    console.log(`Fieldnotes Webboard listening on port ${port}`);
+    console.log(`Blackdit listening on port ${port}`);
   });
 }
 

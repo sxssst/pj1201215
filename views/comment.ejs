@@ -1,0 +1,22 @@
+<article class="comment-row">
+  <img class="comment-avatar" src="<%= comment.avatar_url %>" alt="" width="30" height="30" loading="lazy">
+  <div class="comment-body">
+    <div class="comment-meta"><span class="author-name"><%= comment.display_name || comment.username %></span><span class="author-handle">@<%= comment.username %></span><time><%= comment.created_at %></time></div>
+    <p><%= comment.content %></p>
+    <% if (currentUser) { %>
+      <form class="reply-form" method="post" action="/posts/<%= postId %>/comments">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <input type="hidden" name="parent_comment_id" value="<%= comment.id %>">
+        <textarea name="content" required maxlength="2000" rows="1" aria-label="Reply to <%= comment.username %>" placeholder="Write a reply..."></textarea>
+        <button class="text-button" type="submit">Reply</button>
+      </form>
+    <% } %>
+    <% if (comment.replies.length) { %>
+      <div class="comment-replies">
+        <% comment.replies.forEach(reply => { %>
+          <%- include('comment', { comment: reply, postId, csrfToken, currentUser }) %>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+</article>

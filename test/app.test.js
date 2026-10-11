@@ -44,6 +44,7 @@ function postAvatar(pathname, cookie, token, fields, image) {
   body.set('_csrf', token);
   body.set('username', fields.username);
   body.set('display_name', fields.displayName);
+  body.set('bio', fields.bio || '');
   body.set('avatar', new Blob([image], { type: 'image/png' }), 'avatar.png');
   return fetch(`${baseUrl}${pathname}`, { method: 'POST', redirect: 'manual', headers: { cookie }, body });
 }
@@ -80,6 +81,8 @@ test('bilingual forum, image uploads, profile, ownership, and admin moderation',
   assert.ok(db.pragma('table_info(users)').some(column => column.name === 'display_name'));
   assert.ok(db.pragma('table_info(posts)').some(column => column.name === 'image_url'));
   assert.ok(db.pragma('table_info(comments)').some(column => column.name === 'content'));
+  assert.ok(db.pragma('table_info(comments)').some(column => column.name === 'parent_comment_id'));
+  assert.equal(db.pragma('table_info(users)').find(column => column.name === 'avatar_url').dflt_value, "'/avatar-placeholder.svg'");
 
   const adminCookie = await login(await register('admin'), 'admin');
   let response = await fetch(`${baseUrl}/`, { headers: { cookie: adminCookie } });
@@ -118,14 +121,23 @@ test('bilingual forum, image uploads, profile, ownership, and admin moderation',
   assert.equal((await post(`/posts/${adminPost.id}/comments`, studentCookie, studentToken, {
     content: '<script>alert("comment")</script>'
   })).status, 302);
+  const parentComment = db.prepare('SELECT id FROM comments WHERE post_id = ?').get(adminPost.id);
+  assert.equal((await post(`/posts/${adminPost.id}/comments`, studentCookie, studentToken, {
+    content: 'A nested reply',
+    parent_comment_id: String(parentComment.id)
+  })).status, 302);
+  const nestedReply = db.prepare('SELECT parent_comment_id FROM comments WHERE content = ?').get('A nested reply');
+  assert.equal(nestedReply.parent_comment_id, parentComment.id);
 
   assert.equal((await postAvatar('/profile', studentCookie, studentToken, {
     username: 'student2',
-    displayName: 'Sam'
+    displayName: 'Sam',
+    bio: 'Here for good conversations.'
   }, tinyPng)).status, 302);
-  const student = db.prepare('SELECT username, display_name, avatar_url FROM users WHERE username = ?').get('student2');
+  const student = db.prepare('SELECT username, display_name, bio, avatar_url FROM users WHERE username = ?').get('student2');
   assert.equal(student.username, 'student2');
   assert.equal(student.display_name, 'Sam');
+  assert.equal(student.bio, 'Here for good conversations.');
   const avatarUrl = student.avatar_url;
   const avatarPath = path.join(__dirname, '..', 'public', avatarUrl.slice(1));
   assert.equal(fs.existsSync(avatarPath), true);
@@ -134,11 +146,14 @@ test('bilingual forum, image uploads, profile, ownership, and admin moderation',
   html = await response.text();
   assert.match(html, /<h1>Sam<\/h1>/);
   assert.match(html, /@student2/);
+  assert.match(html, /Here for good conversations\./);
   assert.ok(html.includes(`src="${avatarUrl}"`));
   response = await fetch(`${baseUrl}/`, { headers: { cookie: studentCookie } });
   html = await response.text();
   assert.ok(html.includes(`src="${avatarUrl}"`));
   assert.ok(html.includes('&lt;script&gt;alert(&#34;comment&#34;)&lt;/script&gt;'));
+  assert.match(html, /class="comment-replies"/);
+  assert.match(html, /A nested reply/);
   assert.doesNotMatch(html, /<script>alert\("comment"\)<\/script>/);
   assert.equal((await fetch(`${baseUrl}/admin`, { headers: { cookie: studentCookie } })).status, 403);
 
@@ -166,7 +181,7 @@ after(async () => {
     const filePath = path.join(__dirname, '..', 'public', image_url.slice(1));
     try { fs.unlinkSync(filePath); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   });
-  const avatars = db.prepare('SELECT avatar_url FROM users WHERE avatar_url IS NOT NULL').all();
+  const avatars = db.prepare("SELECT avatar_url FROM users WHERE avatar_url LIKE '/uploads/%'").all();
   avatars.forEach(({ avatar_url }) => {
     const filePath = path.join(__dirname, '..', 'public', avatar_url.slice(1));
     try { fs.unlinkSync(filePath); } catch (error) { if (error.code !== 'ENOENT') throw error; }
